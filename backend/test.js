@@ -1,33 +1,47 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import dotenv from "dotenv";
-
-dotenv.config();
+const API_KEY = "AIzaSyCpX6GsBexBUEb_vHn7iy-DkhlLWWrOf0E"; // 👈 paste your key
 
 async function testGemini() {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("API key not found in .env");
+    if (!API_KEY) {
+      throw new Error("API key missing");
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: "Say hello in one line"
+                }
+              ]
+            }
+          ]
+        }),
+      }
+    );
 
-    // ✅ Stable working model (important)
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash"
-    });
+    const data = await response.json();
 
-    const result = await model.generateContent("Say hello in one line");
+    if (data.error) {
+      console.log("❌ ERROR:", data.error.message);
+      return;
+    }
 
-    const response = result.response.text();
+    const output =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     console.log("✅ SUCCESS:");
-    console.log(response);
+    console.log(output);
 
-  } catch (error) {
-    console.log("❌ ERROR:");
-    console.log(error.message);
+  } catch (err) {
+    console.log("❌ FAILED:", err.message);
   }
 }
 

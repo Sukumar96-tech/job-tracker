@@ -15,8 +15,11 @@ export class AIService {
     const apiKey = this.getGeminiApiKey();
 
     const prompt = `
-Extract job details from the following job description and return ONLY valid JSON:
+Extract job details and return ONLY valid JSON.
 
+Do NOT include explanation.
+
+Format:
 {
   "company": "",
   "role": "",
@@ -55,23 +58,32 @@ ${jobDescription}
     const data: any = await res.json();
 
     const content =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    let parsed: any;
+    if (!content) {
+      throw new Error("No response from Gemini");
+    }
+
+    let parsed: any = {};
 
     try {
       parsed = JSON.parse(content);
     } catch {
       const match = content.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error("Failed to parse Gemini response");
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          parsed = {};
+        }
+      }
     }
 
     return {
       company: parsed.company || "Unknown",
       role: parsed.role || "Unknown Role",
-      requiredSkills: parsed.requiredSkills || [],
-      niceToHaveSkills: parsed.niceToHaveSkills || [],
+      requiredSkills: Array.isArray(parsed.requiredSkills) ? parsed.requiredSkills : [],
+      niceToHaveSkills: Array.isArray(parsed.niceToHaveSkills) ? parsed.niceToHaveSkills : [],
       seniority: parsed.seniority || "mid",
       location: parsed.location || "Unknown",
     };
@@ -86,12 +98,13 @@ ${jobDescription}
     const apiKey = this.getGeminiApiKey();
 
     const prompt = `
-Generate 4 resume bullet points for:
+Generate 4 resume bullet points.
+
+Return ONLY JSON array.
+
 Role: ${role}
 Company: ${company}
 Skills: ${skills.join(", ")}
-
-Return ONLY JSON array.
 `;
 
     const res = await fetch(
@@ -119,16 +132,25 @@ Return ONLY JSON array.
     const data: any = await res.json();
 
     const content =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    let parsed: any;
+    if (!content) {
+      throw new Error("No suggestions from Gemini");
+    }
+
+    let parsed: any = [];
 
     try {
       parsed = JSON.parse(content);
     } catch {
       const match = content.match(/\[[\s\S]*\]/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error("Failed to parse suggestions");
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          parsed = [];
+        }
+      }
     }
 
     return Array.isArray(parsed) ? parsed : [];
