@@ -116,7 +116,7 @@ Return ONLY JSON array.
       throw new Error(`Gemini API error ${res.status}: ${txt}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     const content =
       data.candidates?.[0]?.content?.parts?.[0]?.text || "";
