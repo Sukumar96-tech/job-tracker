@@ -57,10 +57,14 @@ ${jobDescription}
         throw new Error(`Gemini API error ${res.status}: ${txt}`);
       }
 
-      const data: any = await res.json();
+      const data = await res.json() as any;
+
+      console.log("📦 Gemini RAW:", JSON.stringify(data));
 
       const content =
         data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      console.log("🧠 Content:", content);
 
       if (!content) {
         throw new Error("No response from Gemini");
@@ -91,8 +95,8 @@ ${jobDescription}
       };
 
     } catch (error: any) {
-      console.error("❌ AIService Error:", error.message);
-      throw new Error("AI parsing failed");
+      console.error("❌ REAL ERROR:", error);
+      throw new Error(error?.message || "AI parsing failed");
     }
   }
 
@@ -137,7 +141,7 @@ Skills: ${skills.join(", ")}
         throw new Error(`Gemini API error ${res.status}: ${txt}`);
       }
 
-      const data: any = await res.json();
+      const data = await res.json() as any;
 
       const content =
         data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -164,8 +168,8 @@ Skills: ${skills.join(", ")}
       return Array.isArray(parsed) ? parsed : [];
 
     } catch (error: any) {
-      console.error("❌ Suggestion Error:", error.message);
-      throw new Error("Suggestion generation failed");
+      console.error("❌ REAL SUGGESTION ERROR:", error);
+      throw new Error(error?.message || "Suggestion generation failed");
     }
   }
 }
