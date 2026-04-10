@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 import { ParsedJobDescription } from '../types/index.js';
 
 export class AIService {
@@ -12,9 +13,10 @@ export class AIService {
     jobDescription: string
   ): Promise<ParsedJobDescription> {
 
-    const apiKey = this.getGeminiApiKey();
+    try {
+      const apiKey = this.getGeminiApiKey();
 
-    const prompt = `
+      const prompt = `
 Extract job details and return ONLY valid JSON.
 
 Do NOT include explanation.
@@ -33,60 +35,65 @@ Job Description:
 ${jobDescription}
 `;
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
-        }),
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ]
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Gemini API error ${res.status}: ${txt}`);
       }
-    );
 
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${txt}`);
-    }
+      const data: any = await res.json();
 
-    const data: any = await res.json();
+      const content =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const content =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!content) {
+        throw new Error("No response from Gemini");
+      }
 
-    if (!content) {
-      throw new Error("No response from Gemini");
-    }
+      let parsed: any = {};
 
-    let parsed: any = {};
-
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          parsed = {};
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        const match = content.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            parsed = JSON.parse(match[0]);
+          } catch {
+            parsed = {};
+          }
         }
       }
-    }
 
-    return {
-      company: parsed.company || "Unknown",
-      role: parsed.role || "Unknown Role",
-      requiredSkills: Array.isArray(parsed.requiredSkills) ? parsed.requiredSkills : [],
-      niceToHaveSkills: Array.isArray(parsed.niceToHaveSkills) ? parsed.niceToHaveSkills : [],
-      seniority: parsed.seniority || "mid",
-      location: parsed.location || "Unknown",
-    };
+      return {
+        company: parsed.company || "Unknown",
+        role: parsed.role || "Unknown Role",
+        requiredSkills: Array.isArray(parsed.requiredSkills) ? parsed.requiredSkills : [],
+        niceToHaveSkills: Array.isArray(parsed.niceToHaveSkills) ? parsed.niceToHaveSkills : [],
+        seniority: parsed.seniority || "mid",
+        location: parsed.location || "Unknown",
+      };
+
+    } catch (error: any) {
+      console.error("❌ AIService Error:", error.message);
+      throw new Error("AI parsing failed");
+    }
   }
 
   static async generateResumeSuggestions(
@@ -95,9 +102,10 @@ ${jobDescription}
     skills: string[]
   ): Promise<string[]> {
 
-    const apiKey = this.getGeminiApiKey();
+    try {
+      const apiKey = this.getGeminiApiKey();
 
-    const prompt = `
+      const prompt = `
 Generate 4 resume bullet points.
 
 Return ONLY JSON array.
@@ -107,52 +115,57 @@ Company: ${company}
 Skills: ${skills.join(", ")}
 `;
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
-        }),
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ]
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Gemini API error ${res.status}: ${txt}`);
       }
-    );
 
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${txt}`);
-    }
+      const data: any = await res.json();
 
-    const data: any = await res.json();
+      const content =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const content =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!content) {
+        throw new Error("No suggestions from Gemini");
+      }
 
-    if (!content) {
-      throw new Error("No suggestions from Gemini");
-    }
+      let parsed: any = [];
 
-    let parsed: any = [];
-
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      const match = content.match(/\[[\s\S]*\]/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          parsed = [];
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        const match = content.match(/\[[\s\S]*\]/);
+        if (match) {
+          try {
+            parsed = JSON.parse(match[0]);
+          } catch {
+            parsed = [];
+          }
         }
       }
-    }
 
-    return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? parsed : [];
+
+    } catch (error: any) {
+      console.error("❌ Suggestion Error:", error.message);
+      throw new Error("Suggestion generation failed");
+    }
   }
 }
